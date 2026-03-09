@@ -9,9 +9,9 @@
     "start": "node dist/index.js",
     "dev": "ts-node-dev --respawn --ignore-watch node_modules --ignore-watch tsconfig.json --ignore-watch dist src/index.ts",
     "dev:once": "ts-node src/index.ts",
-    "sync-users": "npm run build && node dist/scripts/sync-keycloak-users.js",
-    "sync-users-dry-run": "npm run build && node dist/scripts/sync-keycloak-users.js --dry-run",
-    "delete-old-users": "npm run build && node dist/scripts/sync-keycloak-users.js --delete-old"
+    "sync-users": "node dist/scripts/sync-keycloak-users.js",
+    "sync-users-dry-run": "node dist/scripts/sync-keycloak-users.js --dry-run",
+    "delete-old-users": "node dist/scripts/sync-keycloak-users.js --delete-old"
   },
   "keywords": [
     "keycloak",
