@@ -31,6 +31,18 @@ services:
     networks:
       - keycloak-network
 
+  api:
+    build: .
+    container_name: node-api
+    ports:
+      - "${NODE_PORT:-3000}:${NODE_PORT:-3000}"
+    env_file:
+      - .env
+    depends_on:
+      - keycloak
+    networks:
+      - keycloak-network
+
 volumes:
   postgres_data:
 
