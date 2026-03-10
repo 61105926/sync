@@ -23,6 +23,9 @@ const keycloak = new Keycloak({ store: memoryStore }, keycloakConfig);
 const app = express();
 app.use(express.json());
 app.use(cors);
+if (!cfg.sessionSecret) {
+  throw new Error('SESSION_SECRET no definido. Añádelo al archivo .env');
+}
 app.use(
   session({
     secret: cfg.sessionSecret,
