@@ -97,21 +97,39 @@ export async function verifyCurrentPassword(username: string, currentPassword: s
     timeout: 10000,
     validateStatus: () => true,
   });
-  if (r.status === 200) return true;
-  if (r.status === 400) {
-    const desc = String((r.data as { error_description?: string })?.error_description ?? (r.data as { error?: string })?.error ?? '').toLowerCase();
-    if (
-      desc.includes('not fully set up') ||
-      desc.includes('account is not fully set up') ||
-      desc.includes('user is not fully set up') ||
-      desc.includes('required action') ||
-      desc.includes('update password') ||
-      (desc.includes('temporary') && desc.includes('password')) ||
-      (desc.includes('invalid_grant') && desc.includes('account'))
-    ) {
-      return true;
-    }
+
+  if (r.status === 200) return true; // Token obtenido: contraseña correcta
+
+  // Log de ayuda para depurar respuestas de Keycloak
+  // (se parece al servidor JS standalone que compartiste)
+  console.log(
+    '[verifyCurrentPassword] status=',
+    r.status,
+    'data=',
+    JSON.stringify(r.data)
+  );
+
+  const desc = String(
+    (r.data as { error_description?: string })?.error_description ??
+      (r.data as { error?: string })?.error ??
+      ''
+  ).toLowerCase();
+
+  const isTempPasswordBlock =
+    desc.includes('not fully set up') ||
+    desc.includes('account is not fully set up') ||
+    desc.includes('user is not fully set up') ||
+    desc.includes('required action') ||
+    desc.includes('update password') ||
+    (desc.includes('temporary') && desc.includes('password')) ||
+    (desc.includes('invalid_grant') && desc.includes('account'));
+
+  // Keycloak puede responder 400 o 401 cuando la contraseña es correcta pero temporal
+  if ((r.status === 400 || r.status === 401) && isTempPasswordBlock) {
+    return true;
   }
+
+  // Credenciales incorrectas
   return false;
 }
 
