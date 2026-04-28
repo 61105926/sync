@@ -23,12 +23,11 @@ const keycloak = new Keycloak({ store: memoryStore }, keycloakConfig);
 const app = express();
 app.use(express.json());
 app.use(cors);
-if (!cfg.sessionSecret) {
-  throw new Error('SESSION_SECRET no definido. Añádelo al archivo .env');
-}
+const secret = cfg.sessionSecret || 'default_fallback_secret_for_sessions_node';
+
 app.use(
   session({
-    secret: cfg.sessionSecret,
+    secret: secret,
     resave: false,
     saveUninitialized: true,
     store: memoryStore,

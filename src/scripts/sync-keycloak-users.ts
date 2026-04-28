@@ -144,8 +144,12 @@ async function fetchEmpleados(): Promise<Empleado[]> {
 
 async function findUser(api: AxiosInstance, username: string): Promise<KeycloakUser | null> {
   const url = `${KEYCLOAK_BASE}/admin/realms/${REALM}/users`;
+  // exact: true puede no devolver usuarios federados (LDAP) no importados aún
   const r = await api.get<KeycloakUser[]>(url, { params: { username, exact: true } });
-  return r.data?.length ? r.data[0] : null;
+  if (r.data?.length) return r.data[0];
+  // Fallback: búsqueda sin exact para capturar usuarios federados
+  const r2 = await api.get<KeycloakUser[]>(url, { params: { username } });
+  return r2.data?.find((u) => u.username?.toLowerCase() === username.toLowerCase()) ?? null;
 }
 
 async function createUser(api: AxiosInstance, emp: Empleado): Promise<string | null> {
@@ -161,12 +165,17 @@ async function createUser(api: AxiosInstance, emp: Empleado): Promise<string | n
       ci: [emp.ci].filter(Boolean),
       phone: [emp.phone].filter(Boolean),
       regional: [emp.regional].filter(Boolean),
+      code_regional: [emp.code_regional].filter(Boolean),
       cargo: [emp.cargo].filter(Boolean),
       empID: [String(emp.empID)].filter(Boolean),
     },
     credentials: [{ type: 'password', value: DEFAULT_PASSWORD, temporary: true }],
   };
   const res = await api.post(url, body);
+  if (res.status >= 300) {
+    console.error(`  [Keycloak ${res.status}] No se pudo crear "${username}": ${JSON.stringify(res.data)}`);
+    return null;
+  }
   const location = (res.headers?.location ?? res.headers?.Location) as string | undefined;
   const id = location ? location.replace(/.*\//, '').replace(/\?.*$/, '') : null;
   return id;
@@ -194,6 +203,7 @@ async function updateUser(api: AxiosInstance, userId: string, emp: Empleado): Pr
       ci: [String(emp.ci || '')].filter(Boolean),
       phone: [emp.phone].filter(Boolean),
       regional: [emp.regional].filter(Boolean),
+      code_regional: [emp.code_regional].filter(Boolean),
       cargo: [emp.cargo].filter(Boolean),
       empID: [String(emp.empID || '')].filter(Boolean),
     },
@@ -257,7 +267,7 @@ async function pruneUsersNotInApi(api: AxiosInstance, validUsernames: Set<string
     for (const user of users) {
       const uname = (user.username ?? '').trim();
       if (!uname) continue;
-      if (validUsernames.has(uname)) continue;
+      if (validUsernames.has(uname.toLowerCase())) continue;
       if (uname === ADMIN_USER) continue; // no borrar al admin que usa el script
 
       // Evitar borrar usuarios importados de Active Directory (federados)
@@ -402,9 +412,16 @@ async function main(): Promise<void> {
           created++;
           console.log(`[${i + 1}/${empleados.length}] Creado: ${username} (${emp.fullName})`);
         } else {
+          // Puede que exista en LDAP/AD federation pero no importado aún → buscar y actualizar
           user = await findUser(api, username);
           userId = user?.id ?? null;
-          if (userId) created++;
+          if (userId) {
+            await updateUser(api, userId, emp);
+            updated++;
+            console.log(`[${i + 1}/${empleados.length}] Actualizado (federado): ${username} (${emp.fullName})`);
+          } else {
+            console.warn(`[${i + 1}/${empleados.length}] No se pudo crear ni encontrar: ${username} (${emp.fullName})`);
+          }
         }
       } else {
         userId = user.id;
@@ -424,7 +441,7 @@ async function main(): Promise<void> {
   }
 
   // Solo pueden existir usuarios de la API: borrar en Keycloak los que ya no están en la Survey
-  const validUsernames = new Set(empleados.map((e) => getUsername(e)).filter(Boolean));
+  const validUsernames = new Set(empleados.map((e) => getUsername(e).toLowerCase()).filter(Boolean));
   validUsernames.add(ADMIN_USER); // no borrar nunca al admin
   console.log('');
   console.log('Eliminando usuarios de Keycloak que no están en la API...');

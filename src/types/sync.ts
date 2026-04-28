@@ -5,6 +5,7 @@ export interface Empleado {
   phone?: string;
   cargo?: string;
   regional?: string;
+  code_regional?: string;
   AD?: string | null;
   [key: string]: unknown;
 }
