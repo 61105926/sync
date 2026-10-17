@@ -39,6 +39,32 @@ src/
 
 ## Configuración (.env)
 
+Se utiliza un Keycloak existente. Docker Compose levanta únicamente la aplicación
+Node.js con su API y la sincronización automática; no crea Keycloak ni PostgreSQL.
+Configura `KEYCLOAK_SERVER_URL` en `.env` con la URL de tu instancia, accesible
+desde el contenedor, y las credenciales y el realm correspondientes.
+Si Keycloak está en el mismo equipo, `localhost` dentro del contenedor apunta al
+propio contenedor; en Docker Desktop puedes usar `host.docker.internal`.
+
+Para iniciar el servicio (sincroniza a los 10 segundos de arrancar y diariamente
+a las 02:00, hora del servidor):
+
+```bash
+docker compose up -d --build
+```
+
+Para ejecutar únicamente una sincronización manual, sin iniciar la API ni el
+programador:
+
+```bash
+npm ci
+npm run build
+npm run sync-users
+```
+
+La sincronización puede eliminar usuarios que no aparecen en Survey; revisa
+esa lógica antes de ejecutarla contra tu instancia existente.
+
 - `KEYCLOAK_SERVER_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID`
 - `KEYCLOAK_ADMIN`, `KEYCLOAK_ADMIN_PASSWORD` (o `KEYCLOAK_CLIENT_SECRET`)
 - `SURVEY_API_URL` (para sync, opcional)
